@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { mat4 } from 'gl-matrix';
 import { genPts, genRandomPos } from './generatePoints';
+import { easeInOutQuad } from './utils';
 
 // Shader sources
 const vertexShaderSource = `
@@ -23,6 +24,7 @@ const fragmentShaderSource = `
 
 function App() {
     const canvasRef = useRef(null);
+    const programRef = useRef(null);
     const pts=300
     const initialPos = genRandomPos(1, pts*12);
     const finalPos = genPts(1,pts)
@@ -31,85 +33,67 @@ function App() {
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
+
+        // Initialize Web Worker
+        //const worker = new Worker('animationWorker.js');
+        // Communicate with the Web Worker to start the animation
+        //worker.postMessage(/* Initial data if needed */);
+
         const gl = canvas.getContext('webgl');
-        if (!gl) {
-            throw new Error("WebGL not supported");
-        }
-                // Set canvas width to match screen width
-                canvas.width = window.innerWidth;
-                canvas.height = 300;//window.innerHeight;
-        // Create shaders
+        if (!gl)  throw new Error("WebGL not supported")
+
+        let animationActive = true;
+        
+        canvas.width = window.innerWidth;
+        canvas.height = 300;
         let vertexShader = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(vertexShader, vertexShaderSource);
         gl.compileShader(vertexShader);
         let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
         gl.shaderSource(fragmentShader, fragmentShaderSource);
         gl.compileShader(fragmentShader);
-
-        // Create shader program
         let shaderProgram = gl.createProgram();
+        programRef.current=shaderProgram
         gl.attachShader(shaderProgram, vertexShader);
         gl.attachShader(shaderProgram, fragmentShader);
         gl.linkProgram(shaderProgram);
         gl.useProgram(shaderProgram);
-
-        // Create buffers
         let positionBuffer = gl.createBuffer();
-        // Function to start animation
+
+        const uniformLocations = {
+          matrix: gl.getUniformLocation(shaderProgram, 'modelViewProjectionMatrix'),
+        };
+         // Set up modelViewProjectionMatrix
+         const mvpMatrix = mat4.create();
+         gl.uniformMatrix4fv(uniformLocations.matrix, false, mvpMatrix);
+
         function startAnimation() {
-            // Start animation loop
             startTime = performance.now();
             requestAnimationFrame(animate);
         }
         // Animation loop
         function animate(currentTime) {
-            // Calculate elapsed time since animation started
+          if (!animationActive) return;
+            gl.useProgram(programRef.current);
             let elapsedTime = currentTime - startTime;
             let animationDuration=3000
             let timeFlow=elapsedTime / animationDuration
-            // Calculate progress of animation (from 0 to 1)
-            //let progress = Math.min(elapsedTime / animationDuration, 1);
             let progress = easeInOutQuad(Math.min(timeFlow, 1));
-
-            // Easing functions
-            function easeOutQuad(t) {
-              return t * (2 - t);
-            }
-            function easeInOutSine(t) {
-              return -0.5 * (Math.cos(Math.PI * t) - 1);
-            }
-            function easeInOutQuad(t) {
-              return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-            }
-            function linear(t) {
-              return t;
-            }
-
-
-            // Interpolate positions for each point
             let intermediatePositions = [];
             for (let i = 0; i < initialPos.length; i += 3) {
                 let initialX = initialPos[i];
                 let initialY = initialPos[i + 1];
                 let initialZ = initialPos[i + 2];
-
                 let finalX = finalPos[i];
                 let finalY = finalPos[i + 1];
                 let finalZ = finalPos[i + 2];
-
-                // Linear interpolation
                 let interpolatedX = initialX + (finalX - initialX) * progress;
                 let interpolatedY = initialY + (finalY - initialY) * progress;
                 let interpolatedZ = initialZ + (finalZ - initialZ) * progress;
-
                 intermediatePositions.push(interpolatedX, interpolatedY, interpolatedZ);
             }
-
-            // Update buffers with intermediate positions
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(intermediatePositions), gl.STATIC_DRAW);
-
-            // Set up vertex attributes
             let positionAttributeLocation = gl.getAttribLocation(shaderProgram, "position");
             gl.enableVertexAttribArray(positionAttributeLocation);
             gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
@@ -142,9 +126,8 @@ function App() {
             mat4.multiply(mvpMatrix, projectionMatrix, mvMatrix);
 
             // Get uniform location
-            let matrixLocation = gl.getUniformLocation(shaderProgram, "modelViewProjectionMatrix");
-            gl.uniformMatrix4fv(matrixLocation, false, mvpMatrix);
-            //gl.viewport(0, 0, canvas.width, canvas.height);
+            //let matrixLocation = gl.getUniformLocation(shaderProgram, "modelViewProjectionMatrix");
+            gl.uniformMatrix4fv(uniformLocations.matrix, false, mvpMatrix);
             gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT);
             gl.drawArrays(gl.POINTS, 0, intermediatePositions.length / 3);
@@ -157,18 +140,21 @@ function App() {
         canvas.width = window.innerWidth;
         canvas.height = 300;//window.innerHeight;
         gl.viewport(0, 0, canvas.width, canvas.height);
-        requestAnimationFrame(animate);
+        //requestAnimationFrame(animate);
       }
       window.addEventListener('resize', handleResize);
       handleResize();
       startAnimation();
       return () => {
           window.removeEventListener('resize', handleResize);
+          animationActive = false;
+          if(gl){
+            gl.deleteProgram(shaderProgram)
+            gl.deleteBuffer(positionBuffer)
+          }
       };
 
     }, []);
-
     return <canvas className='' ref={canvasRef} />;
 }
-
 export default App;
