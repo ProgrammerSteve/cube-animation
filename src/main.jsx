@@ -7,6 +7,13 @@ import './index.css'
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     
-    <VantaBg><App /></VantaBg>
+    <VantaBg>
+      <h1>Welcome to Ekkolapto.</h1>
+      <div className='animation-container'>
+      <App />
+    <div>Hello</div>
+      </div>
+
+    </VantaBg>
   </React.StrictMode>,
 )

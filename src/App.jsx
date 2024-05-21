@@ -217,7 +217,7 @@ import { useRef, useEffect } from 'react';
 import { mat4 } from 'gl-matrix';
 import { genPts, genRandomPos } from './generatePoints';
 import { easeInOutQuad } from './utils';
-
+import "./app.css";
 // Shader sources
 const vertexShaderSource = `
     precision mediump float;
