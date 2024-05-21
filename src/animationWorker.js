@@ -1,41 +1,28 @@
 // animationWorker.js
-function performAnimation() {
-    // Your animation logic goes here
-    // This is just a simple example
-    
-    // Simulate an animation by incrementing a counter
-    let counter = 0;
-    const animationDuration = 3000; // Duration of the animation in milliseconds
+self.onmessage = function(e) {
+    const { initialPos, finalPos, startTime, currentTime } = e.data;
 
-    // Start the animation loop
-    const startTime = performance.now();
+    const animationDuration = 3000;
+    const timeFlow = (currentTime - startTime) / animationDuration;
+    const progress = easeInOutQuad(Math.min(timeFlow, 1));
 
-    function animate() {
-        const currentTime = performance.now();
-        const elapsedTime = currentTime - startTime;
-        const progress = Math.min(elapsedTime / animationDuration, 1);
-
-        // Update the counter based on the animation progress
-        counter = Math.floor(progress * 100);
-
-        // Check if animation is complete
-        if (progress < 1) {
-            // If animation is not complete, continue the animation loop
-            requestAnimationFrame(animate);
-        } else {
-            // If animation is complete, post the result back to the main thread
-            self.postMessage({ counter });
-        }
+    let intermediatePositions = [];
+    for (let i = 0; i < initialPos.length; i += 3) {
+        let initialX = initialPos[i];
+        let initialY = initialPos[i + 1];
+        let initialZ = initialPos[i + 2];
+        let finalX = finalPos[i];
+        let finalY = finalPos[i + 1];
+        let finalZ = finalPos[i + 2];
+        let interpolatedX = initialX + (finalX - initialX) * progress;
+        let interpolatedY = initialY + (finalY - initialY) * progress;
+        let interpolatedZ = initialZ + (finalZ - initialZ) * progress;
+        intermediatePositions.push(interpolatedX, interpolatedY, interpolatedZ);
     }
 
-    // Start the animation loop
-    animate();
-}
-
-
-
-
-
-self.onmessage = function(e) {
-    performAnimation();
+    self.postMessage({ intermediatePositions, currentTime });
 };
+
+function easeInOutQuad(t) {
+    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
