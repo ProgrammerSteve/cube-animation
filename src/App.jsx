@@ -258,7 +258,7 @@ function App() {
         let animationActive = true;
         
         canvas.width = window.innerWidth;
-        canvas.height = 300;
+        canvas.height = window.innerHeight;
         let vertexShader = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(vertexShader, vertexShaderSource);
         gl.compileShader(vertexShader);
@@ -331,7 +331,7 @@ function App() {
             const canvas = canvasRef.current;
             if (!canvas) return;
             canvas.width = window.innerWidth;
-            canvas.height = 300;
+            canvas.height = window.innerHeight;
             gl.viewport(0, 0, canvas.width, canvas.height);
         }
 
